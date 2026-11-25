@@ -17,8 +17,8 @@ jobs:
       - name: Build and package plugin
         run: |
           ./build.sh
-          cd dist && zip -r ../it.michelejohn.fps-linux-x86_64.zip it.michelejohn.fps.sdPlugin
+          cd dist && zip -r ../io.github.michelejohn.fps-linux-x86_64.zip io.github.michelejohn.fps.sdPlugin
       - name: Upload Release Asset
         uses: softprops/action-gh-release@v2
         with:
-          files: it.michelejohn.fps-linux-x86_64.zip
+          files: io.github.michelejohn.fps-linux-x86_64.zip

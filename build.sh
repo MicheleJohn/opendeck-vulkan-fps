@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-PLUGIN_ID="it.michelejohn.fps.sdPlugin"
+PLUGIN_ID="io.github.michelejohn.fps.sdPlugin"
 DIST_DIR="dist/${PLUGIN_ID}"
 
 cargo build --release

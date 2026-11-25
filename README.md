@@ -12,7 +12,7 @@ Works out-of-the-box with native **Vulkan** games as well as **DirectX 9/10/11/1
 
 ## Usage
 
-1. Install **Vulkan FPS** from the OpenDeck Marketplace (or copy `it.michelejohn.fps.sdPlugin` into `~/.config/opendeck/plugins/`).
+1. Install **Vulkan FPS** from the OpenDeck Marketplace (or copy `io.github.michelejohn.fps.sdPlugin` into `~/.config/opendeck/plugins/`).
 2. Drag **FPS Counter** onto any key on your Stream Deck.
 3. Choose your preferred detection mode in the action settings panel:
 
