@@ -1,0 +1,24 @@
+{
+  "Name": "Vulkan FPS",
+  "Version": "1.0.0",
+  "Author": "michelejohn",
+  "Description": "Native Rust Vulkan FPS Counter for Linux (AMD, NVIDIA, Intel)",
+  "Icon": "icon",
+  "CodePath": "sd_fps_plugin",
+  "Controllers": ["Keypad"],
+  "OS": [{"Platform": "linux", "MinimumVersion": "1.0"}],
+  "SDKVersion": 2,
+  "Software": {"MinimumVersion": "5.0"},
+  "Category": "Vulkan FPS",
+  "CategoryIcon": "icon",
+  "Actions": [
+    {
+      "Name": "FPS Counter",
+      "Tooltip": "Shows real-time Vulkan/DXVK/VKD3D FPS on your Stream Deck",
+      "Icon": "icon",
+      "UUID": "it.michelejohn.fps.counter",
+      "PropertyInspectorPath": "pi/index.html",
+      "States": [{"Image": "key", "TitleAlignment": "middle", "FontSize": "18"}]
+    }
+  ]
+}

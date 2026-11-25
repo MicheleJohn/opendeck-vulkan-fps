@@ -1,0 +1,17 @@
+[package]
+name = "sd_fps"
+version = "1.0.0"
+edition = "2024"
+
+[lib]
+name = "vk_layer_sd_fps"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[[bin]]
+name = "sd_fps_plugin"
+path = "src/main.rs"
+
+[dependencies]
+libc = "0.2"
+tungstenite = "0.26"
