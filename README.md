@@ -5,8 +5,8 @@ A lightweight, native Rust plugin for [OpenDeck](https://github.com) that displa
 ## How It Works
 
 The plugin consists of two lightweight native Rust components:
-1. **Vulkan Implicit Layer (`libvk_layer_sd_fps.so`):** Automatically installed into `~/.local/lib/` and `~/.local/share/vulkan/implicit_layer.d/` on first launch. It hooks `vkQueuePresentKHR` as a transparent pass-through, increments an atomic frame counter (`~1 ns` per frame), and writes the current FPS atomically to `/dev/shm/sd_fps_<UID>` (RAM) once per second.
-2. **OpenDeck Daemon (`sd_fps_plugin`):** Reads the FPS value from shared memory once per second and updates the Stream Deck button title via OpenDeck's local WebSocket API.
+1. **Vulkan Implicit Layer (`libvk_layer_sd_fps.so`):** Registered via `~/.local/share/vulkan/implicit_layer.d/VK_LAYER_SD_fps.json` on first launch and loaded directly from OpenDeck's `.sdPlugin` directory. It hooks `vkQueuePresentKHR` as a transparent pass-through, increments an atomic frame counter (`~1 ns` per frame), and writes the current FPS atomically to `/dev/shm/sd_fps_<UID>` (RAM) once per second.
+2. **OpenDeck Daemon (`sd_fps_plugin`):** Reads the FPS value from shared memory once per second and updates both the Stream Deck button title and a dynamic gauge icon (`0–240+ FPS` across 5 color bands) via OpenDeck's local WebSocket API.
 
 Works out-of-the-box with native **Vulkan** games as well as **DirectX 9/10/11/12** Windows games running through **Proton, Wine, Lutris, Heroic, Bottles, and Gamescope** (via DXVK / VKD3D-Proton).
 
@@ -33,6 +33,10 @@ Works out-of-the-box with native **Vulkan** games as well as **DirectX 9/10/11/1
     ```text
     ENABLE_SD_FPS=1
     ```
+
+## Uninstalling
+
+Uninstalling **Vulkan FPS** from OpenDeck removes the `.sdPlugin` directory (immediately disabling the Vulkan layer) and automatically cleans up `~/.local/share/vulkan/implicit_layer.d/VK_LAYER_SD_fps.json` and `/dev/shm/sd_fps_<UID>`.
 
 ## Building from Source
 

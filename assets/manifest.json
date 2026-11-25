@@ -1,6 +1,6 @@
 {
   "Name": "Vulkan FPS",
-  "Version": "1.0.1",
+  "Version": "1.0.2",
   "Author": "michelejohn",
   "Description": "Native Rust Vulkan FPS Counter for Linux (AMD, NVIDIA, Intel)",
   "Icon": "icon",

@@ -2,14 +2,49 @@ use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tungstenite::{Message, connect, stream::MaybeTlsStream};
 
+static RUNNING: AtomicBool = AtomicBool::new(true);
+
+extern "C" fn handle_shutdown_signal(_sig: libc::c_int) {
+    RUNNING.store(false, Ordering::SeqCst);
+}
+
+fn install_signal_handlers() {
+    unsafe {
+        libc::signal(libc::SIGTERM, handle_shutdown_signal as *const () as libc::sighandler_t);
+        libc::signal(libc::SIGINT, handle_shutdown_signal as *const () as libc::sighandler_t);
+    }
+}
+
+fn layer_json_path() -> Option<PathBuf> {
+    let home = env::var("HOME").ok()?;
+    Some(PathBuf::from(home).join(".local/share/vulkan/implicit_layer.d/VK_LAYER_SD_fps.json"))
+}
+
+fn cleanup_on_exit() {
+    thread::sleep(Duration::from_millis(300));
+    let uid = unsafe { libc::geteuid() };
+    let _ = fs::remove_file(format!("/dev/shm/sd_fps_{}", uid));
+    let _ = fs::remove_file(format!("/dev/shm/sd_fps_{}.tmp", uid));
+
+    let plugin_missing = env::current_exe()
+    .ok()
+    .and_then(|p| p.parent().map(|d| !d.join("libvk_layer_sd_fps.so").exists()))
+    .unwrap_or(true);
+
+    if plugin_missing {
+        if let Some(json_path) = layer_json_path() {
+            let _ = fs::remove_file(json_path);
+        }
+    }
+}
+
 fn config_file_path() -> Option<PathBuf> {
-    let exe_path = env::current_exe().ok()?;
-    let plugin_dir = exe_path.parent()?;
-    Some(plugin_dir.join("config.json"))
+    env::current_exe().ok()?.parent().map(|d| d.join("config.json"))
 }
 
 fn load_auto_detect_config() -> bool {
@@ -31,28 +66,19 @@ fn sync_vulkan_layer(enable_autodetect: bool) {
     let Ok(home) = env::var("HOME") else { return };
     let Ok(exe_path) = env::current_exe() else { return };
     let Some(plugin_dir) = exe_path.parent() else { return };
-
     let bundled_so = plugin_dir.join("libvk_layer_sd_fps.so");
     if !bundled_so.exists() {
         return;
     }
 
-    let local_lib_dir = PathBuf::from(&home).join(".local/lib");
-    let layer_dir = PathBuf::from(&home).join(".local/share/vulkan/implicit_layer.d");
-    let target_so = local_lib_dir.join("libvk_layer_sd_fps.so");
-    let target_json = layer_dir.join("VK_LAYER_SD_fps.json");
+    let legacy_so = PathBuf::from(&home).join(".local/lib/libvk_layer_sd_fps.so");
+    if legacy_so.exists() {
+        let _ = fs::remove_file(legacy_so);
+    }
 
-    let _ = fs::create_dir_all(&local_lib_dir);
-    let _ = fs::create_dir_all(&layer_dir);
-
-    let should_copy = match (fs::metadata(&bundled_so), fs::metadata(&target_so)) {
-        (Ok(src), Ok(dst)) => src.len() != dst.len() || src.modified().ok() > dst.modified().ok(),
-        (Ok(_), Err(_)) => true,
-        _ => false,
-    };
-
-    if should_copy {
-        let _ = fs::copy(&bundled_so, &target_so);
+    let Some(target_json) = layer_json_path() else { return };
+    if let Some(parent) = target_json.parent() {
+        let _ = fs::create_dir_all(parent);
     }
 
     let env_blocks = if enable_autodetect {
@@ -63,17 +89,16 @@ fn sync_vulkan_layer(enable_autodetect: bool) {
 
     let json_content = format!(
         "{{\n  \"file_format_version\": \"1.0.0\",\n  \"layer\": {{\n    \"name\": \"VK_LAYER_SD_fps\",\n    \"type\": \"GLOBAL\",\n    \"library_path\": \"{}\",\n    \"api_version\": \"1.3.0\",\n    \"implementation_version\": \"1\",\n    \"description\": \"Lightweight Vulkan FPS counter for OpenDeck\",\n    \"functions\": {{\n      \"vkGetInstanceProcAddr\": \"sd_fps_GetInstanceProcAddr\",\n      \"vkGetDeviceProcAddr\": \"sd_fps_GetDeviceProcAddr\"\n    }}{}\n  }}\n}}",
-        target_so.display(),
+        bundled_so.display(),
                                env_blocks
     );
 
-    let needs_json = fs::read_to_string(&target_json)
-    .map(|existing| existing != json_content)
-    .unwrap_or(true);
-
-    if needs_json {
-        let _ = fs::write(&target_json, json_content);
-    }
+    if fs::read_to_string(&target_json)
+        .map(|e| e != json_content)
+        .unwrap_or(true)
+        {
+            let _ = fs::write(&target_json, json_content);
+        }
 }
 
 fn extract_json_str<'a>(json: &'a str, key: &str) -> Option<&'a str> {
@@ -97,7 +122,6 @@ fn read_current_fps() -> Option<u64> {
         None
     }
 }
-
 fn crc32(data: &[u8]) -> u32 {
     let mut crc: u32 = 0xFFFF_FFFF;
     for &b in data {
@@ -239,6 +263,7 @@ fn render_gauge_data_uri(fps: Option<u64>) -> String {
 }
 
 fn main() {
+    install_signal_handlers();
     let mut enable_autodetect = load_auto_detect_config();
     sync_vulkan_layer(enable_autodetect);
 
@@ -273,7 +298,7 @@ fn main() {
     let mut last_rendered_fps: Option<Option<u64>> = None;
     let mut cached_uri = render_gauge_data_uri(None);
 
-    loop {
+    while RUNNING.load(Ordering::SeqCst) {
         if let Ok(Message::Text(txt)) = socket.read() {
             let s = txt.as_str();
             if let Some(ev) = extract_json_str(s, "event") {
@@ -318,6 +343,7 @@ fn main() {
                     ctx, title
                 );
                 if socket.send(Message::Text(title_msg.into())).is_err() {
+                    cleanup_on_exit();
                     return;
                 }
                 if image_changed {
@@ -326,6 +352,7 @@ fn main() {
                         ctx, cached_uri
                     );
                     if socket.send(Message::Text(img_msg.into())).is_err() {
+                        cleanup_on_exit();
                         return;
                     }
                 }
@@ -333,4 +360,6 @@ fn main() {
         }
         thread::sleep(Duration::from_millis(50));
     }
+
+    cleanup_on_exit();
 }
