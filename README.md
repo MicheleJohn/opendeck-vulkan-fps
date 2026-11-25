@@ -1,5 +1,7 @@
 # Vulkan FPS for OpenDeck
 
+![Vulkan FPS Counter running on OpenDeck](docs/demo.gif)
+
 A lightweight, native Rust plugin for [OpenDeck](https://github.com) that displays real-time game FPS directly on your Stream Deck keys on Linux — with **zero on-screen HUD**, **near-zero CPU/GPU overhead**, and full compatibility across **AMD, NVIDIA, and Intel** GPUs.
 
 ## How It Works
